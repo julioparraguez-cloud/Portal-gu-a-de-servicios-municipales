@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Municipal - La Florida</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <!-- Carga de la fuente Poppins y Nunito -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Leaflet Map Library -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1"
+  }
+}
+</script>
+    <style>
+        :root {
+            /* Colores Base */
+            --color-primary: #3B67BF; /* Azul La Florida */
+            --color-primary-light: #5DADE2;
+            --color-primary-dark: #2874A6;
+            
+            /* Colores Marca La Florida (Code 1) */
+            --lf-green: #04BF68;
+            --lf-red: #F25764;
+            --lf-yellow: #F2CB05;
+            --lf-pink: #F2B3E1;
+
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #e5e7eb; 
+            --bg-tertiary: #ECF0F1;
+            --bg-header-top: #1e293b; /* Slate 800 */
+            --bg-footer: #1e293b;
+
+            --text-primary: #000000; /* Black for Day Mode */
+            --text-secondary: #1a202c; /* Very Dark Gray for Secondary Text */
+            --text-inverted: #ffffff;
+
+            --border-primary: #d1d5db;
+            --focus-ring-color: #3B67BF;
+        }
+
+        .dark {
+            --color-primary: #60a5fa; /* Blue 400 */     
+            --color-primary-light: #93c5fd; 
+            --color-primary-dark: #3b82f6;   
+
+            --bg-primary: #0f172a; /* Slate 900 */
+            --bg-secondary: #1e293b; /* Slate 800 */
+            --bg-card: #334155; /* Slate 700 */
+            --bg-tertiary: #475569;
+            --bg-header-top: #020617;
+            --bg-footer: #020617;        
+
+            --text-primary: #ffffff; /* Pure White for Dark Mode */
+            --text-secondary: #ffffff; /* Pure White for Secondary Text in Dark Mode */
+            --text-inverted: #1a202c;
+
+            --border-primary: #475569;    
+            --focus-ring-color: var(--color-primary-light);
+        }
+
+        /* Modo Alto Contraste */
+        body.high-contrast {
+            --bg-primary: #000000;
+            --bg-secondary: #000000;
+            --bg-card: #1a1a1a;
+            --text-primary: #ffff00;
+            --text-secondary: #ffffff;
+            --color-primary: #ffff00;
+            --border-primary: #ffffff;
+        }
+
+        body { 
+            font-family: 'Nunito', 'Poppins', sans-serif; 
+            background-color: var(--bg-primary); 
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            transition: font-size 0.2s ease;
+            line-height: 1.6; /* Improved line-height */
+        }
+        
+        .la-florida-gradient {
+            background: linear-gradient(135deg, var(--lf-green) 0%, var(--color-primary) 100%);
+        }
+
+        /* Layout */
+        .main-container { 
+            display: flex; 
+            flex-direction: column; /* Mobile/Tablet: Sidebar on top because it's first in HTML */
+            gap: 2rem;
+            flex-grow: 1;
+        }
+        @media (min-width: 1024px) { 
+            .main-container { 
+                flex-direction: row-reverse; /* PC: Sidebar (first child) on right, Main (second child) on left */
+                /* Prevent sidebar from stretching to match main content height */
+                align-items: flex-start; 
+            } 
+        }
+        .main-content { 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .sidebar { 
+            width: 100%; 
+            flex-shrink: 0; 
+            display: flex;
+            flex-direction: column;
+        }
+        @media (min-width: 1024px) { 
+            .sidebar { 
+                width: 380px; 
+                position: sticky;
+                top: 120px;
+                align-self: flex-start;
+            } 
+        }
+
+        #main-dashboard {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-height: 100%;
+        }
+
+        .sidebar-card { 
+            background-color: var(--bg-secondary); /* Updated from var(--bg-card) for adaptive background */
+            border: 1px solid var(--border-primary); /* Reduced default thickness */
+            padding: 1.5rem; 
+            margin-bottom: 1.5rem; 
+            border-radius: 1rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar-card .title { 
+            color: var(--color-primary); 
+            font-weight: 800; 
+            font-size: 1.7rem; 
+            margin-bottom: 1.5rem; 
+            border-bottom: 3px solid var(--lf-yellow); 
+            padding-bottom: 0.75rem; 
+            font-family: 'Nunito', sans-serif;
+        }
+
+        .sidebar-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 1rem; 
+            padding: 0.75rem 1rem; 
+            border-radius: 0.75rem; 
+            margin-bottom: 0.7rem; 
+            text-decoration: none; 
+            transition: all 0.2s ease; 
+            line-height: 1.3;
+            width: 100%; 
+            box-sizing: border-box; 
+            position: relative; /* Essential for absolute positioning of bubble */
+            border: 1px solid transparent; 
+        }
+        
+        .sidebar-item:hover { 
+            filter: brightness(0.95);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            transform: translateX(4px);
+            z-index: 10; /* Ensure hovered item is on top */
+        }
+        
+        .sidebar-item.active-tab {
+            background-color: var(--color-primary) !important; 
+            color: white !important; 
+            transform: none; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1;
+            font-weight: 700;
+        }
+        .sidebar-item.active-tab .text-xs {
+            color: rgba(255, 255, 255, 0.9) !important;
+        }
+        .sidebar-item.active-tab .icon {
+             color: white !important;
+        }
+
+        .sidebar-item .icon { 
+            font-size: 1.5rem; 
+            width: 2rem; 
+            text-align: center; 
+            flex-shrink: 0; 
+        }
+        .sidebar-item > div {
+            flex-grow: 1; 
+        }
+        
+        .sidebar-item-green { background-color: var(--lf-green); color: white; }
+        .sidebar-item-yellow { background-color: var(--lf-yellow); color: #333; }
+        .sidebar-item-red { background-color: var(--lf-red); color: white; }
+        .sidebar-item-pink { background-color: var(--lf-pink); color: #333; }
+        .sidebar-item-blue { background-color: var(--color-primary); color: white; }
+        
+        /* Modificado para que sea visible en modo oscuro */
+        .sidebar-item-light { 
+            background-color: #ffffff; 
+            color: #000000; /* Texto negro explícito para modo día */
+            border: 1px solid var(--border-primary); 
+        }
+        .dark .sidebar-item-light {
+            background-color: var(--bg-card); /* Fondo oscuro en modo noche */
+            color: var(--text-primary); /* Texto claro en modo noche */
+            border-color: var(--border-primary);
+        }
+
+        .sidebar-item-darkblue { background-color: #1e293b; color: white; }
+        
+        /* New Style for Directory */
+        .sidebar-item-purple { background-color: #7e22ce; color: white; }
+
+        /* INFO BUBBLE FOR SUMMARIES (HOVER EFFECT) */
+        .info-bubble {
+            position: absolute;
+            bottom: 100%; /* Position above the element */
+            left: 50%;
+            transform: translateX(-50%) translateY(10px); /* Start slightly lower for animation */
+            background-color: #1e293b; /* Dark slate background */
+            color: white;
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            white-space: nowrap; /* Keep text on one line if possible */
+            pointer-events: none; /* Let clicks pass through */
+            opacity: 0; /* Hidden by default */
+            visibility: hidden; /* Hidden by default */
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 50;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            font-weight: 600;
+            margin-bottom: 8px; /* Spacing from element */
+            min-width: 120px;
+            text-align: center;
+        }
+
+        /* Arrow for the bubble */
+        .info-bubble::after {
+            content: '';
+            position: absolute;
+            top: 100%; /* Bottom of bubble */
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+        }
+
+        /* Show on hover */
+        .group:hover .info-bubble,
+        .sidebar-item:hover .info-bubble {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0); /* Move to final position */
+            transition-delay: 2s; /* Wait 2 seconds before showing */
+        }
+
+        /* Filtros de Servicios - Mejor Visibilidad */
+        .filter-select {
+            background-color: #ffffff; /* Fondo blanco explícito en modo día */
+            color: #000000; /* Texto negro explícito en modo día */
+            border: 1px solid #d1d5db;
+        }
+        .dark .filter-select {
+            background-color: var(--bg-card); /* Fondo oscuro en modo noche */
+            color: var(--text-primary); /* Texto claro en modo noche */
+            border-color: var(--border-primary);
+        }
+
+        /* Service Page Cards (Recuadros de Trámites) */
+        .service-page-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-left: 6px solid var(--color-primary); /* Accent border */
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .service-page-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            background-color: var(--bg-secondary);
+            border-color: var(--color-primary-light);
+        }
+
+        .service-page-card h3 {
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Bottom Section Cards (Adultos Mayores, Mujer, etc.) */
+        .bottom-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bottom-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-color: var(--color-primary-light);
+        }
+
+        .bottom-card h3 {
+            color: var(--color-primary);
+            font-weight: 800;
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--lf-yellow);
+            padding-bottom: 0.5rem;
+            display: inline-block;
+        }
+
+        .emergency-card { 
+            text-align: center; 
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            /* Remove flex-grow to prevent stretching on long pages */
+            flex-grow: 0; 
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #fff 0%, #ffe4e6 100%);
+            border: 2px solid var(--lf-red);
+        }
+        .dark .emergency-card {
+             background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+        .emergency-card .number { font-size: 2.5rem; font-weight: 900; color: var(--lf-red); }
+        
+        .quick-access-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 1rem;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end; /* Align content to bottom */
+            cursor: pointer;
+            height: 100%;
+            position: relative; /* Essential for bubble positioning */
+        }
+        .quick-access-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .map-container {
+            min-height: 500px;
+            width: 100%;
+            border-radius: 1rem;
+            border: 4px solid white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+            /* Ensure map stays behind other layers */
+            z-index: 0;
+            position: relative;
+        }
+
+        /* Leaflet Popups - Force Text Color */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            color: #333 !important;
+            background: white !important;
+        }
+        .leaflet-popup-content b {
+            color: #000 !important;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 5000;
+        }
+        
+        /* Force Search Modal to always look like Light Mode for results */
+        #search-modal-content {
+            background-color: #ffffff !important;
+            color: #000000 !important; /* Black */
+            --color-primary: #3B67BF !important; /* Force light mode primary blue */
+            --text-primary: #000000 !important;
+            --text-secondary: #1a202c !important;
+        }
+        
+        #search-modal-content h3, 
+        #search-modal-content h4,
+        #search-modal-content strong,
+        #search-modal-content p,
+        #search-modal-content li,
+        #search-modal-content span {
+            color: inherit !important;
+        }
+        
+        #search-modal-content a {
+            color: var(--color-primary) !important;
+        }
+
+        #search-results {
+            color: #000000 !important;
+        }
+
+        /* Chatbot Enhanced */
+        .chatbot-trigger {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 4.5rem;
+            height: 4.5rem;
+            background: linear-gradient(135deg, var(--lf-green), var(--color-primary));
+            border: 2px solid white;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+            z-index: 4000;
+            cursor: pointer;
+            overflow: hidden;
+            padding: 0.5rem;
+        }
+        .chatbot-trigger:hover { transform: scale(1.1); }
+        
+        .chatbot-window {
+            position: fixed;
+            bottom: 7rem;
+            right: 2rem;
+            width: 360px;
+            max-width: 90vw;
+            height: 550px;
+            background-color: var(--bg-secondary);
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            z-index: 4000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--border-primary);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .chatbot-header {
+            background: linear-gradient(to right, var(--lf-green), var(--color-primary));
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hidden-chat {
+            display: none !important;
+        }
+        
+        .chatbot-trigger.hidden {
+            display: none !important;
+        }
+        
+        /* Active state for new service type buttons */
+        .service-type-btn.active {
+            background-color: var(--color-primary);
+            color: white;
+            border-color: transparent;
+        }
+        
+        /* IMPORTANT: Force white text on active buttons to override utility classes */
+        .service-type-btn.active span {
+            color: #ffffff !important;
+        }
+        
+        .dark .service-type-btn.active {
+             background-color: var(--color-primary);
+             color: white;
+        }
+    </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-[var(--bg-primary)]">
+    <a href="#main-content-anchor" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:bg-white focus:text-black focus:p-2 focus:rounded focus:shadow-md">
+      Saltar al contenido principal
+    </a>
+
+    <!-- Sticky Wrapper for Top Bar and Header -->
+    <div class="sticky top-0 z-50 w-full">
+        <!-- BARRA DE ACCESIBILIDAD (Code 1 Feature) -->
+        <div class="bg-[var(--bg-header-top)] text-white text-xs py-1.5 px-4 hidden md:block">
+            <div class="container mx-auto flex justify-end items-center gap-4">
+                <span class="opacity-70">Herramientas de Accesibilidad:</span>
+                <button id="font-decrease" class="hover:text-[var(--lf-yellow)] flex items-center gap-1 font-bold"><i class="fas fa-minus text-[10px]"></i> A</button>
+                <button id="font-reset" class="hover:text-[var(--lf-yellow)] font-bold">A</button>
+                <button id="font-increase" class="hover:text-[var(--lf-yellow)] flex items-center gap-1 font-bold"><i class="fas fa-plus text-[10px]"></i> A</button>
+                <div class="w-px h-3 bg-gray-600"></div>
+                <button id="contrast-toggle" class="hover:text-[var(--lf-yellow)] flex items-center gap-1 font-bold"><i class="fas fa-adjust"></i> Alto Contraste</button>
+                 <div class="w-px h-3 bg-gray-600"></div>
+                 <!-- Theme Toggle moved here -->
+                 <button id="theme-toggle" class="hover:text-[var(--lf-yellow)] flex items-center gap-1 font-bold">
+                    <span id="theme-icon-container"><i class="fas fa-moon"></i></span> Modo Noche
+                </button>
+            </div>
+        </div>
+
+        <!-- HEADER PRINCIPAL -->
+        <header class="bg-[var(--bg-secondary)] shadow-sm border-t-4 border-[var(--lf-red)]">
+            <div class="bg-[var(--color-primary-light)]"> <!-- Manteniendo el color azul original del header -->
+                <div class="container mx-auto px-3 py-3 flex justify-between items-center">
+                     <!-- Logo Principal -->
+                     <a href="#" class="nav-link flex items-center bg-white px-3 py-1 rounded-lg shadow-sm" data-page="home" aria-label="Ir a la página de inicio">
+                        <div class="logo-svg-container px-3">
+                             <svg viewBox="0 0 220 60" class="h-10 md:h-12 w-auto" fill="none" xmlns="http://www.w3.org/2000/svg" aria-labelledby="logoTitle">
+                                <title id="logoTitle">La Florida - Cada vez mejor</title>
+                                <!-- Flor La Florida Mejorada - Vectorial (Más pequeña: scale 0.5) -->
+                                <g transform="translate(5, 5) scale(0.5)">
+                                    <path d="M50 38 L62 50 L50 62 L38 50 Z" fill="#2563EB" />
+                                    <path d="M50 35 C35 35, 35 0, 50 0 C65 0, 65 35, 50 35 Z" fill="#EF4444" />
+                                    <path d="M65 50 C65 35, 100 35, 100 50 C100 65, 65 65, 65 50 Z" fill="#F472B6" />
+                                    <path d="M50 65 C65 65, 65 100, 50 100 C35 100, 35 65, 50 65 Z" fill="#FACC15" />
+                                    <path d="M35 50 C35 65, 0 65, 0 50 C0 35, 35 35, 35 50 Z" fill="#22C55E" />
+                                </g>
+                                <text x="65" y="38" font-family="'Poppins', sans-serif" font-weight="700" font-size="32" fill="#2563EB">LaFlorida</text>
+                                <text x="215" y="52" text-anchor="end" font-family="'Poppins', sans-serif" font-weight="400" font-size="12" fill="#2563EB" letter-spacing="0.5">Cada vez mejor</text>
+                            </svg>
+                        </div>
+                    </a>
+
+                    <div class="flex items-center gap-4">
+                         <!-- Botón Vecino Registrado (Code 1 Feature) -->
+                        <button id="login-trigger" class="hidden md:flex items-center gap-2 bg-white text-[var(--color-primary)] px-4 py-2 rounded-full font-bold shadow-md hover:bg-gray-100 transition-colors border border-[var(--color-primary)]">
+                            <i class="fas fa-user-circle text-xl"></i> Vecino Registrado
+                        </button>
+
+                        <button class="md:hidden text-white text-2xl" id="mobile-menu-btn">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+            
+            <!-- Secondary Navigation Bar -->
+            <nav class="bg-[var(--bg-secondary)] border-b border-[var(--border-primary)] shadow-sm hidden md:block dark:bg-[var(--bg-card)]">
+                <div class="container mx-auto px-4">
+                    <div class="flex justify-center space-x-1 md:space-x-4 overflow-x-auto py-3 no-scrollbar">
+                        <button class="service-type-btn group relative px-6 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] hover:border-[var(--color-primary)] hover:bg-blue-50 dark:hover:bg-slate-700" data-type="servicio">
+                            <span class="font-bold text-sm text-gray-700 group-hover:text-[var(--color-primary)] dark:text-white dark:group-hover:text-white transition-colors">Servicios</span>
+                        </button>
+                        <button class="service-type-btn group relative px-6 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] hover:border-[var(--color-primary)] hover:bg-blue-50 dark:hover:bg-slate-700" data-type="tramite">
+                            <span class="font-bold text-sm text-gray-700 group-hover:text-[var(--color-primary)] dark:text-white dark:group-hover:text-white transition-colors">Trámites</span>
+                        </button>
+                        <button class="service-type-btn group relative px-6 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] hover:border-[var(--color-primary)] hover:bg-blue-50 dark:hover:bg-slate-700" data-type="programa">
+                            <span class="font-bold text-sm text-gray-700 group-hover:text-[var(--color-primary)] dark:text-white dark:group-hover:text-white transition-colors">Programas</span>
+                        </button>
+                        <button class="service-type-btn group relative px-6 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-800 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] hover:border-[var(--color-primary)] hover:bg-blue-50 dark:hover:bg-slate-700" data-type="taller">
+                            <span class="font-bold text-sm text-gray-700 group-hover:text-[var(--color-primary)] dark:text-white dark:group-hover:text-white transition-colors">Talleres y Charlas</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+    </div>
+
+    <!-- MODAL VECINO DIGITAL (FLOTANTE) -->
+    <div id="vecinos-modal" class="modal-overlay fixed inset-0 hidden items-center justify-center p-4">
+        <div class="bg-[var(--bg-secondary)] w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-[var(--border-primary)]">
+            <!-- Header del Modal -->
+            <div class="la-florida-gradient p-6 text-white flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                        <i class="fas fa-user-circle text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold font-nunito">Portal Vecino Digital</h2>
+                        <p class="text-white/80 text-xs">Bienvenido, Juan Pérez</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="logout-btn" class="bg-red-500/20 hover:bg-red-500/40 text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 border border-white/20">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </button>
+                    <button id="vecinos-modal-close" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenido del Modal -->
+            <div class="flex-grow overflow-y-auto p-8 no-scrollbar">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="vecinos-menu-grid">
+                    <!-- Menu items will be rendered here via JS -->
+                </div>
+
+                <div id="vecinos-detail-container" class="hidden animate-fade-in">
+                    <!-- Sub-page content will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUERPO PRINCIPAL -->
+    <div id="main-body-container" class="container mx-auto px-4 py-8 flex-grow">
+        
+        <!-- BUSCADOR PRINCIPAL (Estilo Code 1) -->
+        <div class="mb-8 bg-[var(--bg-secondary)] p-4 rounded-xl shadow-sm border border-[var(--border-primary)] transition-colors duration-200">
+             <form id="search-form" class="relative" role="search">
+                <label for="search-input" class="sr-only">Buscar en el portal</label>
+                <div class="relative">
+                     <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                    <input type="search" id="search-input" placeholder="¿Qué necesitas hoy? (Ej: Patentes, Aseo, Permiso...)" class="w-full pl-12 pr-4 py-3 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[var(--lf-yellow)] text-gray-900 shadow-inner text-lg transition-colors duration-200 bg-white" required>
+                </div>
+            </form>
+            <!-- Chips de sugerencias (Code 2 Feature) -->
+            <div class="mt-3 flex flex-wrap gap-2 justify-center text-sm">
+                <span class="text-gray-500 dark:text-gray-400 mr-2 self-center">Sugerencias:</span>
+                <button class="suggestion-chip bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-[var(--lf-green)] hover:text-white dark:hover:bg-[var(--lf-green)] dark:hover:text-white px-3 py-1 rounded-full transition-colors" data-search="Permiso de Circulación">Permiso de Circulación</button>
+                <button class="suggestion-chip bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-[var(--color-primary)] hover:text-white dark:hover:bg-[var(--color-primary)] dark:hover:text-white px-3 py-1 rounded-full transition-colors" data-search="Derechos de Aseo">Aseo Domiciliario</button>
+                <button class="suggestion-chip bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-[var(--lf-red)] hover:text-white dark:hover:bg-[var(--lf-red)] dark:hover:text-white px-3 py-1 rounded-full transition-colors" data-search="Licencia de Conducir">Licencia de Conducir</button>
+                <button class="suggestion-chip bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-[var(--lf-yellow)] hover:text-black dark:hover:bg-[var(--lf-yellow)] dark:hover:text-black px-3 py-1 rounded-full transition-colors" data-search="Mascotas">Mascotas</button>
+            </div>
+        </div>
+
+        <div class="main-container">
+            
+            <!-- BARRA LATERAL -->
+            <aside class="sidebar space-y-6">
+                
+                <nav class="sidebar-card service-guide" aria-labelledby="sidebar-title">
+                    <h2 id="sidebar-title" class="title">GUÍA MUNICIPAL</h2>
+                    <div class="flex flex-col">
+                        <a href="#" class="sidebar-item nav-link sidebar-item-green group" data-page="tramites">
+                            <div class="info-bubble">Gestiona permisos y certificados</div>
+                            <i class="fas fa-file-invoice icon" aria-hidden="true"></i>
+                            <div><strong>TRÁMITES MUNICIPALES</strong><br><span class="text-xs">Certificados y licencias</span></div>
+                        </a>
+                        <a href="#" class="sidebar-item nav-link sidebar-item-yellow group" data-page="comuna">
+                            <div class="info-bubble">Seguridad, aseo y medio ambiente</div>
+                            <i class="fas fa-home icon" aria-hidden="true"></i>
+                            <div><strong>VIVIR EN LA FLORIDA</strong><br><span class="text-xs">Seguridad y aseo</span></div>
+                        </a>
+                        <a href="#" class="sidebar-item nav-link sidebar-item-red group" data-page="personas">
+                            <div class="info-bubble">Ayudas sociales y beneficios</div>
+                            <i class="fas fa-users icon" aria-hidden="true"></i>
+                            <div><strong>PERSONAS Y FAMILIA</strong><br><span class="text-xs">Subsidios y ayuda social</span></div>
+                        </a>
+                        <a href="#" class="sidebar-item nav-link sidebar-item-pink group" data-page="salud">
+                            <div class="info-bubble">Atención primaria y colegios</div>
+                            <i class="fas fa-heartbeat icon" aria-hidden="true"></i>
+                            <div><strong>SALUD Y EDUCACIÓN</strong><br><span class="text-xs">CESFAM y colegios</span></div>
+                        </a>
+                        <a href="#" class="sidebar-item nav-link sidebar-item-blue group" data-page="cultura">
+                            <div class="info-bubble">Actividades y recreación</div>
+                            <i class="fas fa-palette icon" aria-hidden="true"></i>
+                            <div><strong>CULTURA Y DEPORTE</strong><br><span class="text-xs">Talleres y eventos</span></div>
+                        </a>
+                        <a href="#" class="sidebar-item nav-link sidebar-item-light group" data-page="desarrollo">
+                            <div class="info-bubble">Empleo y emprendimiento</div>
+                            <i class="fas fa-chart-line icon" aria-hidden="true"></i>
+                            <div><strong>DESARROLLO</strong><br><span class="text-xs">Empleo y pymes</span></div>
+                        </a>
+                        <!-- Vecinos Tab -->
+                        <a href="#" class="sidebar-item nav-link sidebar-item-light group" data-page="vecinos">
+                            <div class="info-bubble">Tu perfil y trámites digitales</div>
+                            <i class="fas fa-user-circle icon" aria-hidden="true"></i>
+                            <div><strong>VECINOS</strong><br><span class="text-xs">Perfil y trámites</span></div>
+                        </a>
+                        <!-- Restored TU MUNICIPALIDAD Tab -->
+                        <a href="#" class="sidebar-item nav-link sidebar-item-darkblue group" data-page="municipio">
+                             <div class="info-bubble">Transparencia y gestión</div>
+                            <i class="fas fa-university icon" aria-hidden="true"></i>
+                            <div><strong>TU MUNICIPALIDAD</strong><br><span class="text-xs">Autoridades y gestión</span></div>
+                        </a>
+                    </div>
+                </nav>
+
+                <div class="sidebar-card emergency-card">
+                    <a href="tel:1416" class="number block hover:scale-110 transition-transform duration-300" aria-label="Llamar al 1416">1416</a>
+                    <div class="text font-bold uppercase tracking-widest mt-2 text-sm text-[var(--text-primary)]">Emergencia 24/7</div>
+                </div>
+
+                <!-- ESTADÍSTICAS (Code 2 Feature) -->
+                <div class="sidebar-card">
+                    <h3 class="font-bold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-pie text-[var(--lf-red)]"></i> Lo más solicitado
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-semibold text-black dark:text-white">
+                                <span>Licencia de Conducir</span>
+                                <span>85%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                                <div class="bg-[var(--color-primary)] h-2.5 rounded-full" style="width: 85%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-semibold text-black dark:text-white">
+                                <span>Retiro de Escombros</span>
+                                <span>65%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                                <div class="bg-[var(--lf-green)] h-2.5 rounded-full" style="width: 65%"></div>
+                            </div>
+                        </div>
+                         <div>
+                            <div class="flex justify-between text-xs mb-1 font-semibold text-black dark:text-white">
+                                <span>Ayuda Social</span>
+                                <span>45%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                                <div class="bg-[var(--lf-red)] h-2.5 rounded-full" style="width: 45%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+
+            <!-- CONTENIDO PRINCIPAL -->
+            <main id="main-content-anchor" class="main-content">
+                <!-- PÁGINA DE INICIO -->
+                <div id="main-dashboard" class="page-section space-y-8">
+                    
+                    <!-- HERO: Bienvenida con Gradiente -->
+                    <section class="la-florida-gradient text-white p-8 rounded-2xl shadow-lg relative overflow-hidden">
+                         <div class="absolute top-0 right-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
+                             <i class="fas fa-leaf text-[15rem]"></i>
+                        </div>
+                        <div class="relative z-10">
+                            <h1 class="text-3xl md:text-5xl font-bold mb-4 font-nunito">Bienvenido a tu Portal</h1>
+                            <p class="text-white/90 text-lg mb-6 max-w-2xl">
+                                Revisa los servicios, trámites, programas, talleres y charlas municipales de forma rápida, segura y 100% en línea. Juntos hacemos a La Florida la comuna mejor.
+                            </p>
+                        </div>
+                    </section>
+                    
+                    <!-- MAPA -->
+                    <section id="map-section">
+                        <div class="flex justify-between items-end mb-4">
+                             <h2 class="text-2xl font-bold text-[var(--text-primary)]">Tu Comuna al Día</h2>
+                             <div class="map-controls flex gap-4 text-sm">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="checkbox" id="cesfam-toggle" class="form-checkbox h-4 w-4 text-red-600 rounded" checked>
+                                    <span class="ml-2 text-black dark:text-white">CESFAMs</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="checkbox" id="reciclaje-toggle" class="form-checkbox h-4 w-4 text-green-600 rounded" checked>
+                                    <span class="ml-2 text-black dark:text-white">Reciclaje</span>
+                                </label>
+                             </div>
+                        </div>
+                        <div id="map-container" class="map-container" aria-label="Mapa de La Florida"></div>
+                    </section>
+
+                    <!-- BANNER SOLICITUD DE SERVICIO -->
+                    <section>
+                        <a href="#" class="nav-link block group" data-page="solicitud">
+                            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-8 text-white shadow-lg transform transition-all hover:scale-[1.01] hover:shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between border-4 border-white">
+                                <!-- Icono de fondo -->
+                                <div class="absolute -left-10 -bottom-10 text-white opacity-10">
+                                    <i class="fas fa-hands-helping text-9xl"></i>
+                                </div>
+                                
+                                <div class="relative z-10 md:w-3/4 mb-6 md:mb-0 text-center md:text-left">
+                                    <h2 class="text-3xl font-extrabold mb-3 text-white">¿Necesitas un servicio, trámite o taller?</h2>
+                                    <p class="text-purple-100 text-lg font-medium">Solicita aquí operativos de aseo, seguridad, inscripción a talleres, programas sociales y más. <span class="underline decoration-2 underline-offset-2">Te escuchamos.</span></p>
+                                </div>
+                                
+                                <div class="relative z-10">
+                                    <span class="inline-flex items-center bg-white text-purple-600 font-bold py-3 px-8 rounded-full shadow-md group-hover:bg-gray-50 transition-colors text-lg">
+                                        Ingresar Solicitud <i class="fas fa-arrow-right ml-2 mt-1"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    </section>
+
+                </div>
+
+                <!-- CONTENEDOR DE PÁGINAS DE SERVICIOS -->
+                <div id="page-content-wrapper" class="hidden">
+                    <!-- Renderizado JS -->
+                </div>
+
+            </main>
+        </div>
+        
+        <!-- SECCIÓN INFERIOR (presente en todas las páginas) -->
+        <section class="mt-12" id="bottom-cards-container">
+             <h2 class="sr-only">Servicios destacados por área</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bottom-card" id="adultos-mayores-card"></div>
+                <div class="bottom-card" id="mujer-card"></div>
+                <div class="bottom-card" id="infancia-card"></div>
+                <div class="bottom-card" id="inclusion-card"></div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- PIE DE PÁGINA -->
+    <footer class="text-white mt-16 border-t-8 border-[var(--lf-yellow)]" style="background-color: var(--bg-footer);">
+        <div class="container mx-auto px-4 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
+                <div>
+                     <div class="flex items-center gap-2 mb-4">
+                         <!-- Logo pequeño footer -->
+                        <span class="font-bold text-xl">Muni La Florida</span>
+                    </div>
+                    <p class="text-gray-400">Trabajando juntos por una comuna más verde, segura y conectada.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-3 text-[var(--lf-green)]">CONTACTO</h4>
+                    <p class="text-gray-300">Américo Vespucio N°6666<br>Tel: +562 2505 4000<br><a href="mailto:vecinos@munilaflorida.cl" class="hover:underline">vecinos@munilaflorida.cl</a></p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-3 text-[var(--color-primary-light)]">TRANSPARENCIA</h4>
+                    <ul class="space-y-1">
+                        <li><a href="#" class="text-gray-300 hover:text-[var(--lf-yellow)]">Ley de Transparencia</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-[var(--lf-yellow)]">Ley del Lobby</a></li>
+                        <li><a href="#" class="text-gray-300 hover:text-[var(--lf-yellow)]">Cuenta Pública</a></li>
+                    </ul>
+                </div>
+                 <div class="flex items-center justify-center md:justify-end space-x-4">
+                    <a href="https://www.instagram.com/munilaflorida/" target="_blank" class="bg-gray-700 p-2 rounded-full hover:bg-[var(--color-primary)] transition" aria-label="Instagram"><i class="fab fa-instagram text-xl"></i></a>
+                    <a href="https://twitter.com/MuniLaFlorida" target="_blank" class="bg-gray-700 p-2 rounded-full hover:bg-[var(--color-primary)] transition" aria-label="X"><i class="fab fa-twitter text-xl"></i></a>
+                    <a href="https://www.facebook.com/MuniLaFlorida" target="_blank" class="bg-gray-700 p-2 rounded-full hover:bg-[var(--color-primary)] transition" aria-label="Facebook"><i class="fab fa-facebook-f text-xl"></i></a>
+                </div>
+            </div>
+            <div class="text-center mt-8 text-xs text-gray-500">
+                &copy; 2025 Ilustre Municipalidad de La Florida.
+            </div>
+        </div>
+    </footer>
+
+    <!-- MODAL SEARCH -->
+    <div id="search-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 modal-overlay" style="z-index: 5000;" role="dialog" aria-modal="true">
+        <div id="search-modal-content" class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[85vh] transform transition-all scale-100" onclick="event.stopPropagation()">
+            <h3 id="search-modal-title" class="text-xl font-bold mb-4 text-[var(--text-primary)] flex-shrink-0 flex items-center gap-2">
+                <i class="fas fa-search text-[var(--color-primary)]"></i> Resultados
+            </h3>
+            <div id="search-results" class="text-[var(--text-secondary)] mb-6 overflow-y-auto pr-4 flex-grow min-h-[100px]"></div>
+            <button id="search-modal-close-button" class="w-full text-white px-4 py-3 rounded-xl transition duration-300 bg-[var(--color-primary-dark)] hover:bg-[var(--color-primary)] font-bold">
+                Cerrar
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL LOGIN VECINO (Code 1 Feature) -->
+    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 modal-overlay" style="z-index: 5000;" role="dialog" aria-modal="true">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative transform transition-all scale-100">
+            <button id="login-close" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+            <div class="p-8">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-[var(--lf-green)]/10 rounded-full flex items-center justify-center mx-auto mb-4 text-[var(--lf-green)]">
+                        <i class="fas fa-user text-3xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800">Vecino Digital</h3>
+                    <p class="text-slate-500 text-sm">Ingresa para ver el estado de tus trámites</p>
+                </div>
+
+                <!-- Botón Clave Única Nuevo -->
+                <button id="claveunica-login-btn" class="w-full bg-[#0F69C4] text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 mb-6 hover:bg-[#0b55a0] transition shadow-md">
+                    <span class="font-bold italic text-xl">claveúnica</span>
+                    <span class="text-sm font-normal ml-1">Ingresar</span>
+                </button>
+
+                <!-- Divisor -->
+                <div class="relative flex py-2 items-center mb-6">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-sm">o ingresa con tus datos</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+
+                <form id="login-form">
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">RUT</label>
+                        <input type="text" placeholder="12.345.678-9" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[var(--lf-green)] focus:border-transparent outline-none bg-white text-gray-900">
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Contraseña</label>
+                        <input type="password" placeholder="••••••" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[var(--lf-green)] focus:border-transparent outline-none bg-white text-gray-900">
+                    </div>
+                    <button type="submit" class="w-full bg-[var(--color-primary)] hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-lg">INGRESAR</button>
+                    <div class="mt-4 text-center text-sm">
+                        <a href="#" class="text-[var(--lf-green)] font-bold hover:underline">¿Olvidaste tu contraseña?</a>
+                    </div>
+                </form>
+            </div>
+            <div class="bg-gray-50 p-4 text-center border-t border-gray-100">
+                <span class="text-sm text-gray-600">¿No tienes cuenta? <a href="#" class="text-[var(--color-primary)] font-bold hover:underline">Regístrate aquí</a></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL REDACTOR MÁGICO (IA) (Code 1 Feature) -->
+    <div id="ai-writer-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 modal-overlay" style="z-index: 5000;">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+            <div class="bg-gradient-to-r from-[var(--lf-red)] to-pink-500 p-4 text-white flex justify-between items-center">
+                <div class="flex items-center gap-2"><i class="fas fa-magic text-[var(--lf-yellow)]"></i><h3 class="font-bold">Redactar Solicitud o Sugerencia</h3></div>
+                <button id="ai-writer-close" class="hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-600 text-sm mb-4">Describe tu problema y nuestra IA redactará una carta formal para el municipio.</p>
+                <input type="text" id="writer-type" readonly class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-700 font-bold mb-4">
+                <textarea id="writer-details" rows="3" placeholder="Ej: Solicito la poda porque el árbol tapa el alumbrado y es peligroso..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-[var(--lf-red)] outline-none"></textarea>
+                <div id="writer-result" class="hidden mb-4">
+                    <textarea id="writer-output" rows="6" class="w-full bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-800"></textarea>
+                </div>
+                <button id="ai-generate-btn" class="w-full bg-[var(--lf-red)] text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-red-600 transition shadow-lg">
+                    <i class="fas fa-pen-fancy"></i> Redactar Carta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHATBOT WIDGET (Diseño mejorado) -->
+    <button id="chatbot-trigger" class="chatbot-trigger" aria-label="Abrir asistente virtual">
+        <!-- Icono SVG Vectorial Flor IA Mejorada -->
+        <svg viewBox="0 0 100 100" class="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g>
+                <path d="M50 38 L62 50 L50 62 L38 50 Z" fill="#2563EB" />
+                <path d="M50 35 C35 35, 35 0, 50 0 C65 0, 65 35, 50 35 Z" fill="#EF4444" />
+                <path d="M65 50 C65 35, 100 35, 100 50 C100 65, 65 65, 65 50 Z" fill="#F472B6" />
+                <path d="M50 65 C65 65, 65 100, 50 100 C35 100, 35 65, 50 65 Z" fill="#FACC15" />
+                <path d="M35 50 C35 65, 0 65, 0 50 C0 35, 35 35, 35 50 Z" fill="#22C55E" />
+            </g>
+        </svg>
+    </button>
+
+    <div id="chatbot-window" class="chatbot-window hidden-chat">
+        <header class="chatbot-header">
+            <div class="font-bold flex items-center">
+                <div class="h-10 w-10 mr-2 bg-white rounded-full p-1 flex items-center justify-center overflow-hidden border border-gray-200">
+                    <!-- Icono SVG Header Chatbot Mejorada -->
+                    <svg viewBox="0 0 100 100" class="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g>
+                            <path d="M50 38 L62 50 L50 62 L38 50 Z" fill="#2563EB" />
+                            <path d="M50 35 C35 35, 35 0, 50 0 C65 0, 65 35, 50 35 Z" fill="#EF4444" />
+                            <path d="M65 50 C65 35, 100 35, 100 50 C100 65, 65 65, 65 50 Z" fill="#F472B6" />
+                            <path d="M50 65 C65 65, 65 100, 50 100 C35 100, 35 65, 50 65 Z" fill="#FACC15" />
+                            <path d="M35 50 C35 65, 0 65, 0 50 C0 35, 35 35, 35 50 Z" fill="#22C55E" />
+                        </g>
+                    </svg>
+                </div>
+                <div>
+                    <div>Asistente Municipal</div>
+                    <div class="text-[10px] bg-green-400/30 px-2 py-0.5 rounded-full flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span> En línea</div>
+                </div>
+            </div>
+            <button id="chatbot-close" class="text-white hover:bg-white/20 rounded-full p-1 w-8 h-8 flex justify-center items-center transition"><i class="fas fa-times"></i></button>
+        </header>
+        <div id="chatbot-messages" class="chatbot-messages p-4 flex-grow overflow-y-auto bg-[var(--bg-primary)] flex flex-col gap-3">
+            <div class="chat-message bot bg-white border border-gray-200 p-3 rounded-2xl rounded-tl-none shadow-sm text-sm max-w-[85%] self-start text-[var(--text-primary)]">
+                ¡Hola! Soy tu asistente virtual inteligente de La Florida. ¿En qué puedo ayudarte hoy?
+            </div>
+        </div>
+        <div class="chatbot-input p-3 bg-white border-t border-gray-200 flex gap-2">
+            <input type="text" id="chatbot-text-input" placeholder="Escribe tu pregunta..." autocomplete="off" class="flex-grow border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[var(--color-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)]">
+            <button id="chatbot-send" class="bg-[var(--color-primary)] text-white w-9 h-9 rounded-full flex items-center justify-center hover:bg-blue-700 transition"><i class="fas fa-paper-plane text-xs"></i></button>
+        </div>
+    </div>
+
+    <script type="module" src="./index.tsx"></script>
+
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
